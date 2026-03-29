@@ -134,7 +134,6 @@ tr:hover td{background:var(--bg-hover)}
 <div class="main">
   <div class="topbar">
     <div class="topbar-title">{% block topbar_title %}Overview{% endblock %}</div>
-    <div class="topbar-badge">Preview</div>
     <div class="topbar-right">
       <div class="topbar-project">Project: proj-custDemo-FoundryObservebility-jp-001</div>
     </div>
@@ -148,6 +147,7 @@ tr:hover td{background:var(--bg-hover)}
 Chart.defaults.color='#a1a1aa';Chart.defaults.borderColor='#3f3f46';
 Chart.defaults.font.family="'Segoe UI',system-ui,sans-serif";
 const COLORS=['#a855f7','#3b82f6','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#8b5cf6'];
+const chartDefaults={responsive:true,maintainAspectRatio:false,animation:{duration:600}};
 function showLoading(el){el.innerHTML='<div class="loading">Loading data…</div>';}
 async function fetchJSON(url){const r=await fetch(url);if(!r.ok)throw new Error(r.statusText);return r.json();}
 function fmtNum(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n);}
