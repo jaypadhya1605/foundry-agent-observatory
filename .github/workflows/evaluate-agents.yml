@@ -31,6 +31,8 @@ jobs:
 
       - name: Run Agent Evaluations
         uses: microsoft/ai-agent-evals@v3-beta
+        env:
+          AZURE_AI_PROJECT_ENDPOINT: https://mf-custdemo-foundryobservability-jp-1.services.ai.azure.com/api/projects/proj-custDemo-FoundryObservebility-jp-001
         with:
           subscription: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resource-group: rg-custDemo-FoundryObservability-jp-1
