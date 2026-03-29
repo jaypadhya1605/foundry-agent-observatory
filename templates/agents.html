@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Agents — Agent Observatory{% endblock %}
+{% block topbar_title %}Assets &bull; Agents{% endblock %}
+{% block content %}
+<div class="panel">
+  <div class="panel-header">
+    <div><div class="panel-title">Agent Inventory</div><div class="panel-subtitle">All prompt agents deployed in the Foundry project</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Agent</th><th>Status</th><th>Runs</th><th>Error Rate</th><th>Avg Latency</th><th>P95</th><th>Versions</th><th>Last Seen</th></tr></thead>
+    <tbody id="agent-table"><tr><td colspan="8"><div class="loading">Loading agents…</div></td></tr></tbody>
+  </table>
+</div>
+
+<div class="chart-row">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Error Rate by Agent</div></div>
+    <div class="chart-wrap"><canvas id="errorChart"></canvas></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Latency Distribution</div></div>
+    <div class="chart-wrap"><canvas id="latencyChart"></canvas></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async()=>{
+  const agents=await fetchJSON('/api/agents');
+  const tb=document.getElementById('agent-table');
+  tb.innerHTML=agents.map(a=>`<tr>
+    <td style="font-weight:600">${a.agent_name}</td>
+    <td><span class="status-badge status-${a.Status?.toLowerCase()||'unknown'}">${a.Status||'Unknown'}</span></td>
+    <td>${a.Runs}</td>
+    <td style="color:${a.ErrorRate>5?'var(--error)':'var(--success)'}">${a.ErrorRate}%</td>
+    <td>${(a.AvgLatency/1000).toFixed(1)}s</td>
+    <td>${(a.P95Latency/1000).toFixed(1)}s</td>
+    <td>${a.Versions}</td>
+    <td style="color:var(--text-secondary)">${new Date(a.LastSeen).toLocaleString()}</td>
+  </tr>`).join('');
+
+  // Error chart
+  const errs=await fetchJSON('/api/errors');
+  new Chart(document.getElementById('errorChart'),{type:'bar',data:{labels:errs.map(r=>r.agent_name),datasets:[{label:'Error %',data:errs.map(r=>r.ErrorRate),backgroundColor:errs.map(r=>r.ErrorRate>5?'#ef4444':'#22c55e')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,title:{display:true,text:'Error Rate %'}}}}});
+
+  // Latency
+  const lat=await fetchJSON('/api/latency');
+  const buckets=['<1s','1-3s','3-5s','5-10s','>10s'];
+  const agentNames=[...new Set(lat.map(r=>r.agent_name))];
+  const datasets=agentNames.map((a,i)=>({label:a,data:buckets.map(b=>{const m=lat.find(r=>r.agent_name===a&&r.bucket===b);return m?m.count_:0;}),backgroundColor:COLORS[i%COLORS.length]}));
+  new Chart(document.getElementById('latencyChart'),{type:'bar',data:{labels:buckets,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}}},scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}}});
+})();
+</script>
+{% endblock %}

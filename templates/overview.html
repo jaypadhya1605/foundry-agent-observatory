@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Overview — Agent Observatory{% endblock %}
+{% block topbar_title %}Overview{% endblock %}
+{% block content %}
+<div class="cards" id="kpi-cards">
+  <div class="card"><div class="card-label">Total Agent Runs</div><div class="card-value accent" id="kpi-runs">—</div><div class="card-sub">Last 7 days</div></div>
+  <div class="card"><div class="card-label">Success Rate</div><div class="card-value success" id="kpi-success">—</div><div class="card-sub">Target: &ge; 95%</div></div>
+  <div class="card"><div class="card-label">Avg Latency</div><div class="card-value" id="kpi-latency">—</div><div class="card-sub" id="kpi-p95">P95: —</div></div>
+  <div class="card"><div class="card-label">Estimated Cost</div><div class="card-value accent" id="kpi-cost">—</div><div class="card-sub" id="kpi-tokens">— tokens</div></div>
+</div>
+
+<div class="cards" id="metric-cards">
+  <div class="card"><div class="card-label">Running Agents</div><div class="card-value" id="kpi-agent-count">—</div><div class="card-sub">Persistent prompt agents</div></div>
+  <div class="card"><div class="card-label">AgentRuns (Platform)</div><div class="card-value" id="metric-runs">—</div><div class="card-sub">Azure Monitor metric</div></div>
+  <div class="card"><div class="card-label">AgentResponses</div><div class="card-value" id="metric-responses">—</div><div class="card-sub">Azure Monitor metric</div></div>
+  <div class="card"><div class="card-label">Tool Calls</div><div class="card-value" id="metric-tools">—</div><div class="card-sub">AgentToolCalls metric</div></div>
+</div>
+
+<div class="chart-row">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Agent Run Volume Over Time</div></div>
+    <div class="chart-wrap"><canvas id="timelineChart"></canvas></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Token Usage by Agent</div></div>
+    <div class="chart-wrap"><canvas id="tokenChart"></canvas></div>
+  </div>
+</div>
+
+<div class="chart-row">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Workflow Step Performance (ms)</div></div>
+    <div class="chart-wrap"><canvas id="workflowChart"></canvas></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Model Usage</div></div>
+    <div class="chart-wrap"><canvas id="modelChart"></canvas></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async()=>{
+  // KPIs
+  const kpi=await fetchJSON('/api/overview');
+  document.getElementById('kpi-runs').textContent=fmtNum(kpi.total_runs);
+  document.getElementById('kpi-success').textContent=kpi.success_rate+'%';
+  const sEl=document.getElementById('kpi-success');
+  if(kpi.success_rate<95)sEl.className='card-value warning';
+  document.getElementById('kpi-latency').textContent=(kpi.avg_latency_ms/1000).toFixed(1)+'s';
+  document.getElementById('kpi-p95').textContent='P95: '+(kpi.p95_latency_ms/1000).toFixed(1)+'s';
+  document.getElementById('kpi-cost').textContent='$'+kpi.estimated_cost;
+  document.getElementById('kpi-tokens').textContent=fmtNum(kpi.total_input_tokens+kpi.total_output_tokens)+' tokens';
+
+  // Platform metrics
+  const met=await fetchJSON('/api/metrics');
+  document.getElementById('metric-runs').textContent=fmtNum(met.AgentRuns||0);
+  document.getElementById('metric-responses').textContent=fmtNum(met.AgentResponses||0);
+  document.getElementById('metric-tools').textContent=fmtNum(met.AgentToolCalls||0);
+
+  // Agent count
+  const agents=await fetchJSON('/api/agents');
+  document.getElementById('kpi-agent-count').textContent=agents.length+' agents';
+
+  // Timeline chart
+  const tl=await fetchJSON('/api/timeline');
+  const agentNames=[...new Set(tl.map(r=>r.agent_name))];
+  const times=[...new Set(tl.map(r=>r.timestamp))].sort();
+  const datasets=agentNames.map((a,i)=>({
+    label:a,borderColor:COLORS[i%COLORS.length],backgroundColor:COLORS[i%COLORS.length]+'33',
+    data:times.map(t=>{const m=tl.find(r=>r.agent_name===a&&r.timestamp===t);return m?m.Runs:0;}),
+    fill:true,tension:.3
+  }));
+  new Chart(document.getElementById('timelineChart'),{type:'line',data:{labels:times.map(t=>new Date(t).toLocaleString('en',{month:'short',day:'numeric',hour:'2-digit'})),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}}},scales:{y:{beginAtZero:true}}}});
+
+  // Token chart
+  const tok=await fetchJSON('/api/tokens');
+  new Chart(document.getElementById('tokenChart'),{type:'bar',data:{labels:tok.map(r=>r.agent_name),datasets:[{label:'Input',data:tok.map(r=>r.InputTokens),backgroundColor:'#a855f7'},{label:'Output',data:tok.map(r=>r.OutputTokens),backgroundColor:'#3b82f6'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}}},scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}}});
+
+  // Workflow chart
+  const wf=await fetchJSON('/api/workflow');
+  new Chart(document.getElementById('workflowChart'),{type:'bar',data:{labels:wf.map(r=>r.name),datasets:[{label:'Avg',data:wf.map(r=>r.AvgDuration),backgroundColor:'#a855f7'},{label:'P95',data:wf.map(r=>r.P95),backgroundColor:'#ef4444'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
+
+  // Model chart
+  const mod=await fetchJSON('/api/models');
+  new Chart(document.getElementById('modelChart'),{type:'doughnut',data:{labels:mod.map(r=>r.model),datasets:[{data:mod.map(r=>r.TotalTokens),backgroundColor:COLORS}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10}}}}});
+})();
+</script>
+{% endblock %}

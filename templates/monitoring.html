@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Monitoring — Agent Observatory{% endblock %}
+{% block topbar_title %}Monitoring{% endblock %}
+{% block content %}
+<div class="cards">
+  <div class="card"><div class="card-label">Platform Agent Runs</div><div class="card-value accent" id="m-runs">—</div><div class="card-sub">Azure Monitor metric</div></div>
+  <div class="card"><div class="card-label">Platform Responses</div><div class="card-value" id="m-resp">—</div><div class="card-sub">Azure Monitor metric</div></div>
+  <div class="card"><div class="card-label">Input Tokens</div><div class="card-value" id="m-in">—</div><div class="card-sub">Platform total</div></div>
+  <div class="card"><div class="card-label">Output Tokens</div><div class="card-value" id="m-out">—</div><div class="card-sub">Platform total</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Latency Distribution (ms)</div></div>
+    <canvas id="latencyChart" height="260"></canvas>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Token Usage Over Time</div></div>
+    <canvas id="tokenChart" height="260"></canvas>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Error Rates by Agent</div></div>
+  <canvas id="errorChart" height="200"></canvas>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Real-time KQL Query Console</div><div class="panel-subtitle">Run custom queries against Application Insights</div></div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <select id="kql-preset" style="flex:1;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:8px;border-radius:6px;font-size:13px">
+      <option value="">Select a preset query…</option>
+      <option value="dependencies | where timestamp > ago(1h) | summarize count() by target | order by count_ desc | take 20">Dependencies by target (1h)</option>
+      <option value="customEvents | where timestamp > ago(24h) | summarize count() by name | order by count_ desc">Custom events by name (24h)</option>
+      <option value="dependencies | where timestamp > ago(24h) | summarize avg(duration), percentile(duration,95) by target | order by avg_duration desc">Latency by target (24h)</option>
+      <option value="dependencies | where success == false and timestamp > ago(7d) | summarize count() by target, resultCode | order by count_ desc">Failed dependencies (7d)</option>
+    </select>
+  </div>
+  <textarea id="kql-input" rows="4" style="width:100%;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:10px;border-radius:6px;font-family:'Cascadia Code',monospace;font-size:13px;resize:vertical" placeholder="Enter KQL query here..."></textarea>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button id="kql-run" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">Run Query</button>
+    <div id="kql-status" style="align-self:center;color:var(--text-secondary);font-size:13px"></div>
+  </div>
+  <div id="kql-result" style="margin-top:12px;max-height:400px;overflow:auto"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const presetSel=document.getElementById('kql-preset');
+presetSel.addEventListener('change',()=>{if(presetSel.value)document.getElementById('kql-input').value=presetSel.value});
+
+document.getElementById('kql-run').addEventListener('click',async()=>{
+  const q=document.getElementById('kql-input').value.trim();
+  if(!q)return;
+  const status=document.getElementById('kql-status');
+  const result=document.getElementById('kql-result');
+  status.textContent='Running…';result.innerHTML='';
+  try{
+    const r=await fetch('/api/kql',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
+    const d=await r.json();
+    if(d.error){status.textContent='Error';result.innerHTML=`<div style="color:#f85149">${d.error}</div>`;return}
+    const cols=d.columns||[];const rows=d.rows||[];
+    status.textContent=`${rows.length} rows returned`;
+    if(!rows.length){result.innerHTML='<div style="color:var(--text-secondary)">No results</div>';return}
+    result.innerHTML=`<table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }catch(e){status.textContent='Error';result.innerHTML=`<div style="color:#f85149">${e.message}</div>`}
+});
+
+(async()=>{
+  const [metrics,latency,tokens,errors]=await Promise.all([fetchJSON('/api/metrics'),fetchJSON('/api/latency'),fetchJSON('/api/tokens'),fetchJSON('/api/errors')]);
+  if(metrics){
+    document.getElementById('m-runs').textContent=fmtNum(metrics.AgentRuns||0);
+    document.getElementById('m-resp').textContent=fmtNum(metrics.AgentResponses||0);
+    document.getElementById('m-in').textContent=fmtNum(metrics.AgentInputTokens||0);
+    document.getElementById('m-out').textContent=fmtNum(metrics.AgentOutputTokens||0);
+  }
+  if(latency&&latency.length){
+    new Chart(document.getElementById('latencyChart'),{type:'bar',data:{labels:latency.map(l=>l.agent),datasets:[{label:'P50 (ms)',data:latency.map(l=>l.p50),backgroundColor:'rgba(56,139,253,0.6)'},{label:'P95 (ms)',data:latency.map(l=>l.p95),backgroundColor:'rgba(248,81,73,0.6)'}]},options:{...chartDefaults,scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'},title:{display:true,text:'ms',color:'#7d8590'}}}}});
+  }
+  if(tokens&&tokens.length){
+    new Chart(document.getElementById('tokenChart'),{type:'line',data:{labels:tokens.map(t=>t.date),datasets:[{label:'Input Tokens',data:tokens.map(t=>t.input),borderColor:'#388bfd',backgroundColor:'rgba(56,139,253,0.1)',fill:true},{label:'Output Tokens',data:tokens.map(t=>t.output),borderColor:'#56d364',backgroundColor:'rgba(86,211,100,0.1)',fill:true}]},options:{...chartDefaults,scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'}}}}});
+  }
+  if(errors&&errors.length){
+    new Chart(document.getElementById('errorChart'),{type:'bar',data:{labels:errors.map(e=>e.agent),datasets:[{label:'Error %',data:errors.map(e=>e.error_pct),backgroundColor:errors.map(e=>e.error_pct>5?'rgba(248,81,73,0.7)':'rgba(86,211,100,0.7)')}]},options:{...chartDefaults,scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'},title:{display:true,text:'%',color:'#7d8590'}}}}});
+  }
+})();
+</script>
+{% endblock %}

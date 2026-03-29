@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Traces — Agent Observatory{% endblock %}
+{% block topbar_title %}Traces{% endblock %}
+{% block content %}
+<div class="panel">
+  <div class="panel-header">
+    <div><div class="panel-title">Recent Trace Spans</div><div class="panel-subtitle">End-to-end workflow and agent invocations (last 24h)</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Time</th><th>Span</th><th>Agent</th><th>Duration</th><th>Status</th><th>Patient</th><th>Operation ID</th></tr></thead>
+    <tbody id="trace-table"><tr><td colspan="7"><div class="loading">Loading traces…</div></td></tr></tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div><div class="panel-title">Conversation Sessions</div><div class="panel-subtitle">Multi-turn agent conversations grouped by Foundry conversation ID</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Conversation ID</th><th>Agent Calls</th><th>Unique Agents</th><th>Session Duration</th></tr></thead>
+    <tbody id="conv-table"><tr><td colspan="4"><div class="loading">Loading…</div></td></tr></tbody>
+  </table>
+</div>
+
+<div class="panel" style="margin-top:24px">
+  <div class="panel-header"><div class="panel-title">Workflow Architecture (Trace Shape)</div></div>
+  <pre style="color:var(--text-secondary);font-size:13px;line-height:1.8;padding:12px;background:var(--bg-primary);border-radius:8px">
+discharge_workflow (parent span — ~35s)
+├── agent.patient_summary (11s)
+│   └── invoke_agent patient-summary-agent:2  <span style="color:var(--accent)">[server-side, auto-traced]</span>
+│       ├── chat gpt-4o  <span style="color:var(--info)">[LLM call + token counts]</span>
+│       └── execute_tool multi_tool_use.parallel  <span style="color:var(--success)">[tool calls]</span>
+├── agent.medication_reconciliation (10s)
+│   └── invoke_agent medication-reconciliation-agent:2
+│       ├── chat gpt-4o
+│       └── execute_tool multi_tool_use.parallel
+├── agent.discharge_instructions (11s)
+│   └── invoke_agent discharge-instructions-agent:2
+│       ├── chat gpt-4o
+│       └── execute_tool multi_tool_use.parallel
+└── agent.bed_management (8s)
+    └── invoke_agent bed-management-agent:3
+        ├── chat gpt-4o
+        └── execute_tool multi_tool_use.parallel
+  </pre>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async()=>{
+  const traces=await fetchJSON('/api/traces');
+  document.getElementById('trace-table').innerHTML=traces.map(t=>`<tr>
+    <td style="color:var(--text-secondary);font-size:12px">${new Date(t.timestamp).toLocaleString()}</td>
+    <td style="font-weight:500">${t.name}</td>
+    <td>${t.agent_id||'—'}</td>
+    <td>${(t.duration/1000).toFixed(1)}s</td>
+    <td><span class="status-badge ${t.success==='True'||t.success===true?'status-running':'status-degraded'}">${t.success==='True'||t.success===true?'OK':'Failed'}</span></td>
+    <td>${t.patient_id||'—'}</td>
+    <td style="font-family:monospace;font-size:11px;color:var(--text-secondary)">${t.operation_Id?.slice(0,12)||''}…</td>
+  </tr>`).join('');
+
+  const convs=await fetchJSON('/api/conversations');
+  document.getElementById('conv-table').innerHTML=convs.map(c=>`<tr>
+    <td style="font-family:monospace;font-size:11px">${c.conv_id?.slice(0,40)||''}…</td>
+    <td>${c.AgentCalls}</td>
+    <td>${c.Agents}</td>
+    <td style="color:var(--text-secondary)">${c.Duration||'—'}</td>
+  </tr>`).join('');
+})();
+</script>
+{% endblock %}

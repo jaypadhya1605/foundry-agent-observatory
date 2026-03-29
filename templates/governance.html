@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Compliance & Governance — Agent Observatory{% endblock %}
+{% block topbar_title %}Compliance & Governance{% endblock %}
+{% block content %}
+
+<div class="cards">
+  <div class="card"><div class="card-label">Content Safety</div><div class="card-value" style="color:#56d364">Enabled</div><div class="card-sub">Azure AI Content Safety</div></div>
+  <div class="card"><div class="card-label">Blocklists</div><div class="card-value accent">2</div><div class="card-sub">Active blocklists</div></div>
+  <div class="card"><div class="card-label">Guardrail Triggers</div><div class="card-value" id="guardrail-count">—</div><div class="card-sub">Last 7 days</div></div>
+  <div class="card"><div class="card-label">Data Residency</div><div class="card-value">East US</div><div class="card-sub">Region compliance</div></div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Content Safety Configuration</div><div class="panel-subtitle">Azure AI Content Safety settings applied to all agent interactions</div></div>
+  <table>
+    <thead><tr><th>Category</th><th>Severity Threshold</th><th>Action</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Hate & Fairness</td><td>Medium (4)</td><td>Block</td><td><span class="status-badge status-running">Active</span></td></tr>
+      <tr><td>Violence</td><td>Medium (4)</td><td>Block</td><td><span class="status-badge status-running">Active</span></td></tr>
+      <tr><td>Sexual Content</td><td>Medium (4)</td><td>Block</td><td><span class="status-badge status-running">Active</span></td></tr>
+      <tr><td>Self-Harm</td><td>Medium (4)</td><td>Block</td><td><span class="status-badge status-running">Active</span></td></tr>
+      <tr><td>Jailbreak Detection</td><td>Enabled</td><td>Block + Log</td><td><span class="status-badge status-running">Active</span></td></tr>
+      <tr><td>Protected Material Detection</td><td>Enabled</td><td>Block + Log</td><td><span class="status-badge status-running">Active</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Custom Blocklists</div><div class="panel-subtitle">Domain-specific terms and patterns that are blocked in agent I/O</div></div>
+  <table>
+    <thead><tr><th>Blocklist Name</th><th>Term Count</th><th>Match Type</th><th>Applied To</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>healthcare-phi-blocklist</td><td>42</td><td>Exact + Regex</td><td>All agents (input + output)</td><td><span class="status-badge status-running">Active</span></td></tr>
+      <tr><td>competitor-medication-names</td><td>15</td><td>Exact</td><td>discharge-instructions-agent</td><td><span class="status-badge status-running">Active</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Guardrail Rules</div><div class="panel-subtitle">Custom validation rules enforced on agent responses</div></div>
+  <table>
+    <thead><tr><th>Rule</th><th>Type</th><th>Agent</th><th>Description</th><th>Triggers (7d)</th></tr></thead>
+    <tbody>
+      <tr><td>no-diagnosis-rule</td><td>Output filter</td><td>All agents</td><td>Blocks responses containing diagnostic conclusions not supported by source data</td><td>3</td></tr>
+      <tr><td>medication-dose-check</td><td>Output validation</td><td>medication-reconciliation-agent</td><td>Validates medication dosages against formulary database ranges</td><td>1</td></tr>
+      <tr><td>discharge-readability</td><td>Output quality</td><td>discharge-instructions-agent</td><td>Ensures discharge instructions are at or below 8th grade reading level</td><td>7</td></tr>
+      <tr><td>pii-redaction</td><td>Input/Output filter</td><td>All agents</td><td>Detects and redacts PII (SSN, MRN patterns) before logging</td><td>12</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Responsible AI Compliance Checklist</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#56d364;font-size:18px">✓</span> Content Safety filters enabled for all categories</div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#56d364;font-size:18px">✓</span> Custom blocklists configured for PHI terms</div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#56d364;font-size:18px">✓</span> Output guardrails with domain validation</div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#56d364;font-size:18px">✓</span> PII redaction in telemetry pipeline</div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#56d364;font-size:18px">✓</span> Jailbreak detection enabled</div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#56d364;font-size:18px">✓</span> Continuous evaluation rules active</div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#56d364;font-size:18px">✓</span> Data residency: East US region only</div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="color:#56d364;font-size:18px">✓</span> Audit logging via App Insights</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('guardrail-count').textContent='23';
+</script>
+{% endblock %}

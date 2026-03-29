@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Architecture — Agent Observatory{% endblock %}
+{% block topbar_title %}Architecture{% endblock %}
+{% block content %}
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Hospital Discharge Agent Workflow</div><div class="panel-subtitle">Interactive architecture diagram — hover nodes for details</div></div>
+  <div id="arch-diagram" style="padding:24px;display:flex;justify-content:center"></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Agent Specifications</div></div>
+    <table>
+      <thead><tr><th>Agent</th><th>Model</th><th>Kind</th><th>Tools</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight:500">🔀 Bed Management Agent</td><td>gpt-4o</td><td>prompt</td><td>bed_availability, assign_bed</td></tr>
+        <tr><td style="font-weight:500">📋 Patient Summary Agent</td><td>gpt-4o</td><td>prompt</td><td>get_patient_record, get_vitals</td></tr>
+        <tr><td style="font-weight:500">💊 Medication Reconciliation</td><td>gpt-4o</td><td>prompt</td><td>get_medications, check_interactions</td></tr>
+        <tr><td style="font-weight:500">📝 Discharge Instructions</td><td>gpt-4o</td><td>prompt</td><td>generate_instructions, readability_check</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><div class="panel-title">Integration Points</div></div>
+    <table>
+      <thead><tr><th>Service</th><th>Type</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>Azure AI Foundry</td><td>Platform</td><td>Agent hosting & orchestration</td></tr>
+        <tr><td>Application Insights</td><td>Observability</td><td>Traces, metrics, events</td></tr>
+        <tr><td>Azure Monitor</td><td>Metrics</td><td>Platform-level agent metrics</td></tr>
+        <tr><td>Azure AI Content Safety</td><td>Governance</td><td>Content filtering & blocklists</td></tr>
+        <tr><td>Azure Key Vault</td><td>Security</td><td>Connection string storage</td></tr>
+        <tr><td>GitHub Actions</td><td>CI/CD</td><td>Evaluation & deployment pipelines</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Data Flow</div></div>
+  <div style="padding:12px;font-size:13px;line-height:2.2">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span class="status-badge" style="background:var(--accent);color:#fff;padding:4px 12px">1. Patient Admission</span>
+      <span style="color:var(--text-secondary)">→</span>
+      <span class="status-badge" style="background:#1a7f37;color:#fff;padding:4px 12px">2. Bed Management</span>
+      <span style="color:var(--text-secondary)">→</span>
+      <span class="status-badge" style="background:#9333ea;color:#fff;padding:4px 12px">3. Patient Summary</span>
+      <span style="color:var(--text-secondary)">→</span>
+      <span class="status-badge" style="background:#b45309;color:#fff;padding:4px 12px">4. Medication Review</span>
+      <span style="color:var(--text-secondary)">→</span>
+      <span class="status-badge" style="background:#0284c7;color:#fff;padding:4px 12px">5. Discharge Instructions</span>
+      <span style="color:var(--text-secondary)">→</span>
+      <span class="status-badge" style="background:#56d364;color:#000;padding:4px 12px">6. Patient Discharge</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const diagram=document.getElementById('arch-diagram');
+const svg=`
+<svg width="800" height="480" viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,sans-serif">
+  <defs>
+    <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7d8590"/></marker>
+    <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+
+  <!-- User -->
+  <rect x="320" y="10" width="160" height="44" rx="8" fill="#161b22" stroke="#388bfd" stroke-width="2"/>
+  <text x="400" y="37" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="600">👤 Clinician Portal</text>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="54" x2="400" y2="90" stroke="#7d8590" marker-end="url(#ah)"/>
+
+  <!-- Orchestrator -->
+  <rect x="260" y="90" width="280" height="50" rx="10" fill="#161b22" stroke="#56d364" stroke-width="2" filter="url(#glow)"/>
+  <text x="400" y="120" text-anchor="middle" fill="#e6edf3" font-size="14" font-weight="700">🔀 Bed Management Agent</text>
+
+  <!-- Arrows to 3 agents -->
+  <line x1="320" y1="140" x2="160" y2="200" stroke="#7d8590" marker-end="url(#ah)"/>
+  <line x1="400" y1="140" x2="400" y2="200" stroke="#7d8590" marker-end="url(#ah)"/>
+  <line x1="480" y1="140" x2="640" y2="200" stroke="#7d8590" marker-end="url(#ah)"/>
+
+  <!-- Agent 1 -->
+  <rect x="60" y="200" width="200" height="50" rx="10" fill="#161b22" stroke="#9333ea" stroke-width="2"/>
+  <text x="160" y="230" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600">📋 Patient Summary</text>
+
+  <!-- Agent 2 -->
+  <rect x="300" y="200" width="200" height="50" rx="10" fill="#161b22" stroke="#b45309" stroke-width="2"/>
+  <text x="400" y="230" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600">💊 Medication Reconciliation</text>
+
+  <!-- Agent 3 -->
+  <rect x="540" y="200" width="200" height="50" rx="10" fill="#161b22" stroke="#0284c7" stroke-width="2"/>
+  <text x="640" y="230" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600">📝 Discharge Instructions</text>
+
+  <!-- Arrows down to App Insights -->
+  <line x1="160" y1="250" x2="160" y2="310" stroke="#7d8590" stroke-dasharray="4" marker-end="url(#ah)"/>
+  <line x1="400" y1="250" x2="400" y2="310" stroke="#7d8590" stroke-dasharray="4" marker-end="url(#ah)"/>
+  <line x1="640" y1="250" x2="640" y2="310" stroke="#7d8590" stroke-dasharray="4" marker-end="url(#ah)"/>
+
+  <!-- App Insights -->
+  <rect x="100" y="310" width="600" height="50" rx="10" fill="#161b22" stroke="#f0883e" stroke-width="2"/>
+  <text x="400" y="340" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="600">📊 Application Insights — Traces, Dependencies, Custom Events</text>
+
+  <!-- Arrow down -->
+  <line x1="400" y1="360" x2="400" y2="400" stroke="#7d8590" marker-end="url(#ah)"/>
+
+  <!-- This dashboard -->
+  <rect x="200" y="400" width="400" height="50" rx="10" fill="#388bfd" stroke="#388bfd" stroke-width="2"/>
+  <text x="400" y="430" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">🔭 Agent Observatory Dashboard</text>
+
+  <!-- Side: Content Safety -->
+  <rect x="10" y="310" width="80" height="50" rx="8" fill="#161b22" stroke="#f85149" stroke-width="1.5"/>
+  <text x="50" y="335" text-anchor="middle" fill="#f85149" font-size="10" font-weight="600">Content</text>
+  <text x="50" y="348" text-anchor="middle" fill="#f85149" font-size="10" font-weight="600">Safety</text>
+  <line x1="90" y1="335" x2="100" y2="335" stroke="#f85149" stroke-dasharray="3"/>
+
+  <!-- Side: Azure Monitor -->
+  <rect x="710" y="310" width="80" height="50" rx="8" fill="#161b22" stroke="#d29922" stroke-width="1.5"/>
+  <text x="750" y="335" text-anchor="middle" fill="#d29922" font-size="10" font-weight="600">Azure</text>
+  <text x="750" y="348" text-anchor="middle" fill="#d29922" font-size="10" font-weight="600">Monitor</text>
+  <line x1="700" y1="335" x2="710" y2="335" stroke="#d29922" stroke-dasharray="3"/>
+</svg>`;
+diagram.innerHTML=svg;
+</script>
+{% endblock %}

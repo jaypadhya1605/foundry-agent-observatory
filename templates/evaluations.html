@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Evaluations — Agent Observatory{% endblock %}
+{% block topbar_title %}Evaluations{% endblock %}
+{% block content %}
+<div class="cards">
+  <div class="card"><div class="card-label">Evaluation Events</div><div class="card-value accent" id="eval-count">—</div><div class="card-sub">Last 7 days</div></div>
+  <div class="card"><div class="card-label">Continuous Eval Rules</div><div class="card-value">3</div><div class="card-sub">Active rules</div></div>
+  <div class="card"><div class="card-label">Evaluator Types</div><div class="card-value" id="eval-types">—</div><div class="card-sub">Custom + built-in</div></div>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Evaluation Scores by Evaluator</div></div>
+  <table>
+    <thead><tr><th>Evaluator</th><th>Avg Score</th><th>Count</th><th>Status</th></tr></thead>
+    <tbody id="eval-table"><tr><td colspan="4"><div class="loading">Loading…</div></td></tr></tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">Continuous Evaluation Rules</div><div class="panel-subtitle">Configured rules that run on agent response completions</div></div>
+  <table>
+    <thead><tr><th>Rule Name</th><th>Agent Target</th><th>Evaluators</th><th>Sample Rate</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>rule-patient-summary-quality</td><td>patient-summary-agent</td><td>clinical-documentation-quality</td><td>100 / hour</td><td><span class="status-badge status-running">Enabled</span></td></tr>
+      <tr><td>rule-medication-safety</td><td>medication-reconciliation-agent</td><td>medication-safety-compliance</td><td>100 / hour</td><td><span class="status-badge status-running">Enabled</span></td></tr>
+      <tr><td>rule-discharge-readability</td><td>discharge-instructions-agent</td><td>patient-education-readability</td><td>100 / hour</td><td><span class="status-badge status-running">Enabled</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <div class="panel-header"><div class="panel-title">GitHub Actions CI/CD Evaluation</div><div class="panel-subtitle">Offline agent evaluation on every PR</div></div>
+  <div style="padding:16px;background:var(--bg-primary);border-radius:8px;font-size:13px">
+    <p style="margin-bottom:12px">The <code style="background:var(--bg-hover);padding:2px 6px;border-radius:4px">microsoft/ai-agent-evals@v3-beta</code> GitHub Action evaluates agents on every push to <code style="background:var(--bg-hover);padding:2px 6px;border-radius:4px">main</code>.</p>
+    <pre style="color:var(--text-secondary);font-size:12px;line-height:1.6">
+    PR Push → Azure Login (OIDC) → Run Evaluation → Summary Report
+    ├── Evaluators: fluency, task_adherence, violence, groundedness
+    ├── Agents: patient-summary-agent:2, medication-reconciliation-agent:2
+    └── Output: Confidence intervals + statistical significance</pre>
+    <p style="margin-top:12px;color:var(--text-secondary)">See <code style="background:var(--bg-hover);padding:2px 6px;border-radius:4px">.github/workflows/evaluate-agents.yml</code> for the workflow definition.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async()=>{
+  const evals=await fetchJSON('/api/evaluations');
+  const totalCount=evals.reduce((s,e)=>s+e.Count,0);
+  document.getElementById('eval-count').textContent=fmtNum(totalCount);
+  document.getElementById('eval-types').textContent=evals.length;
+  document.getElementById('eval-table').innerHTML=evals.map(e=>{
+    const score=e.AvgScore==='NaN'?'N/A':e.AvgScore;
+    const status=score==='N/A'?'unknown':score>=0.7?'running':'degraded';
+    return `<tr>
+      <td style="font-weight:500">${e.evaluator||'(default)'}</td>
+      <td>${score}</td>
+      <td>${e.Count}</td>
+      <td><span class="status-badge status-${status}">${score==='N/A'?'Pending':score>=0.7?'Pass':'Needs Review'}</span></td>
+    </tr>`;
+  }).join('');
+})();
+</script>
+{% endblock %}
