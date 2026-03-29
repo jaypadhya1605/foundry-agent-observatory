@@ -17,8 +17,6 @@ permissions:
 jobs:
   evaluate:
     runs-on: ubuntu-latest
-    env:
-      AZURE_AI_PROJECT_ENDPOINT: ${{ secrets.AZURE_AI_PROJECT_ENDPOINT }}
 
     steps:
       - name: Checkout code
@@ -34,8 +32,7 @@ jobs:
       - name: Run Agent Evaluations
         uses: microsoft/ai-agent-evals@v3-beta
         with:
-          subscription: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          resource-group: rg-custDemo-FoundryObservability-jp-1
-          project: proj-custDemo-FoundryObservebility-jp-001
+          azure-ai-project-endpoint: ${{ secrets.AZURE_AI_PROJECT_ENDPOINT }}
+          deployment-name: gpt-4o
+          data-path: eval/dataset.json
           agent-ids: "patient-summary-agent:2,medication-reconciliation-agent:2,discharge-instructions-agent:2,bed-management-agent:2"
-          data: eval/dataset.json
