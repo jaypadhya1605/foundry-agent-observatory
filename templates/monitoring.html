@@ -15,7 +15,7 @@
     <canvas id="latencyChart" height="260"></canvas>
   </div>
   <div class="panel">
-    <div class="panel-header"><div class="panel-title">Token Usage Over Time</div></div>
+    <div class="panel-header"><div class="panel-title">Token Usage by Agent</div></div>
     <canvas id="tokenChart" height="260"></canvas>
   </div>
 </div>
@@ -76,13 +76,22 @@ document.getElementById('kql-run').addEventListener('click',async()=>{
     document.getElementById('m-out').textContent=fmtNum(metrics.AgentOutputTokens||0);
   }
   if(latency&&latency.length){
-    new Chart(document.getElementById('latencyChart'),{type:'bar',data:{labels:latency.map(l=>l.agent),datasets:[{label:'P50 (ms)',data:latency.map(l=>l.p50),backgroundColor:'rgba(56,139,253,0.6)'},{label:'P95 (ms)',data:latency.map(l=>l.p95),backgroundColor:'rgba(248,81,73,0.6)'}]},options:{...chartDefaults,scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'},title:{display:true,text:'ms',color:'#7d8590'}}}}});
+    // Pivot bucket data: group by agent, build stacked bars per bucket
+    const agents=[...new Set(latency.map(l=>l.agent_name))];
+    const buckets=['<1s','1-3s','3-5s','5-10s','>10s'];
+    const colors=['rgba(56,139,253,0.7)','rgba(86,211,100,0.7)','rgba(210,153,34,0.7)','rgba(248,81,73,0.7)','rgba(163,51,234,0.7)'];
+    const datasets=buckets.map((b,i)=>({
+      label:b,
+      data:agents.map(a=>{const r=latency.find(l=>l.agent_name===a&&l.bucket===b);return r?r.count_:0}),
+      backgroundColor:colors[i]
+    }));
+    new Chart(document.getElementById('latencyChart'),{type:'bar',data:{labels:agents,datasets},options:{...chartDefaults,plugins:{legend:{labels:{color:'#7d8590'}}},scales:{x:{stacked:true,ticks:{color:'#7d8590'}},y:{stacked:true,ticks:{color:'#7d8590'},title:{display:true,text:'Count',color:'#7d8590'}}}}});
   }
   if(tokens&&tokens.length){
-    new Chart(document.getElementById('tokenChart'),{type:'line',data:{labels:tokens.map(t=>t.date),datasets:[{label:'Input Tokens',data:tokens.map(t=>t.input),borderColor:'#388bfd',backgroundColor:'rgba(56,139,253,0.1)',fill:true},{label:'Output Tokens',data:tokens.map(t=>t.output),borderColor:'#56d364',backgroundColor:'rgba(86,211,100,0.1)',fill:true}]},options:{...chartDefaults,scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'}}}}});
+    new Chart(document.getElementById('tokenChart'),{type:'bar',data:{labels:tokens.map(t=>t.agent_name),datasets:[{label:'Input Tokens',data:tokens.map(t=>t.InputTokens),backgroundColor:'rgba(56,139,253,0.7)'},{label:'Output Tokens',data:tokens.map(t=>t.OutputTokens),backgroundColor:'rgba(86,211,100,0.7)'}]},options:{...chartDefaults,plugins:{legend:{labels:{color:'#7d8590'}}},scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'},title:{display:true,text:'Tokens',color:'#7d8590'}}}}});
   }
   if(errors&&errors.length){
-    new Chart(document.getElementById('errorChart'),{type:'bar',data:{labels:errors.map(e=>e.agent),datasets:[{label:'Error %',data:errors.map(e=>e.error_pct),backgroundColor:errors.map(e=>e.error_pct>5?'rgba(248,81,73,0.7)':'rgba(86,211,100,0.7)')}]},options:{...chartDefaults,scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'},title:{display:true,text:'%',color:'#7d8590'}}}}});
+    new Chart(document.getElementById('errorChart'),{type:'bar',data:{labels:errors.map(e=>e.agent_name),datasets:[{label:'Error %',data:errors.map(e=>e.ErrorRate),backgroundColor:errors.map(e=>e.ErrorRate>5?'rgba(248,81,73,0.7)':'rgba(86,211,100,0.7)')}]},options:{...chartDefaults,plugins:{legend:{labels:{color:'#7d8590'}}},scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'},title:{display:true,text:'%',color:'#7d8590'}}}}});
   }
 })();
 </script>
