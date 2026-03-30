@@ -215,6 +215,11 @@ async function runTest(name){
     if(d.success) html+='<span class="eval-badge pass">✓ PASS</span>';
     else html+='<span class="eval-badge fail">✗ FAIL</span>';
 
+    if(d.blocked_by_filter) html+='<span class="eval-badge pass">🛡️ Blocked by Filter</span>';
+    if(d.blocked===true) html+='<span class="eval-badge pass">🚫 Prompt Blocked</span>';
+    if(d.blocked===false) html+='<span class="eval-badge info">✓ Prompt Passed</span>';
+    if(d.blocklist_ids&&d.blocklist_ids.length) html+=`<span class="eval-badge pass">Blocklist: ${d.blocklist_ids.join(', ')}</span>`;
+    if(d.filters_triggered&&d.filters_triggered.length) html+=d.filters_triggered.map(f=>`<span class="eval-badge pass">${f}</span>`).join('');
     if(d.guardrail_triggered!==undefined) html+=d.guardrail_triggered?'<span class="eval-badge pass">Guardrail Triggered</span>':'<span class="eval-badge fail">Guardrail NOT Triggered</span>';
     if(d.pii_leaked!==undefined) html+=d.pii_leaked?'<span class="eval-badge fail">PII Leaked</span>':'<span class="eval-badge pass">PII Filtered</span>';
     if(d.conversation_id) html+=`<span class="eval-badge info">conv: ${d.conversation_id.slice(0,20)}…</span>`;
