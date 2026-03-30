@@ -10,11 +10,6 @@
 </div>
 
 <div class="panel">
-  <div class="panel-header"><div class="panel-title">Error Rates by Agent</div></div>
-  <canvas id="errorChart" height="200"></canvas>
-</div>
-
-<div class="panel">
   <div class="panel-header"><div class="panel-title">Real-time KQL Query Console</div><div class="panel-subtitle">Run custom queries against Application Insights</div></div>
   <div style="display:flex;gap:8px;margin-bottom:12px">
     <select id="kql-preset" style="flex:1;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);padding:8px;border-radius:6px;font-size:13px">
@@ -57,15 +52,12 @@ document.getElementById('kql-run').addEventListener('click',async()=>{
 });
 
 (async()=>{
-  const [metrics,errors]=await Promise.all([fetchJSON('/api/metrics'),fetchJSON('/api/errors')]);
+  const metrics=await fetchJSON('/api/metrics');
   if(metrics){
     document.getElementById('m-runs').textContent=fmtNum(metrics.AgentRuns||0);
     document.getElementById('m-resp').textContent=fmtNum(metrics.AgentResponses||0);
     document.getElementById('m-in').textContent=fmtNum(metrics.AgentInputTokens||0);
     document.getElementById('m-out').textContent=fmtNum(metrics.AgentOutputTokens||0);
-  }
-  if(errors&&errors.length){
-    new Chart(document.getElementById('errorChart'),{type:'bar',data:{labels:errors.map(e=>e.agent_name),datasets:[{label:'Error %',data:errors.map(e=>e.ErrorRate),backgroundColor:errors.map(e=>e.ErrorRate>5?'rgba(248,81,73,0.7)':'rgba(86,211,100,0.7)')}]},options:{...chartDefaults,plugins:{legend:{labels:{color:'#7d8590'}}},scales:{x:{ticks:{color:'#7d8590'}},y:{ticks:{color:'#7d8590'},title:{display:true,text:'%',color:'#7d8590'}}}}});
   }
 })();
 </script>
