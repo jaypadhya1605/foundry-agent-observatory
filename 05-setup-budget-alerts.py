@@ -11,7 +11,7 @@ import json
 SUBSCRIPTION_ID = "06c76c82-8db9-4106-b3c0-2e90af4bdd04"
 RESOURCE_GROUP = "rg-apim-providence-demo-jp-001"
 BUDGET_NAME = "apim-demo-budget"
-BUDGET_AMOUNT = 50  # $50/month
+BUDGET_AMOUNT = 2500  # $2,500/month
 ALERT_EMAIL = "jaypadhya@microsoft.com"
 
 
@@ -48,10 +48,10 @@ def create_budget_alerts():
     print("\n  Creating threshold alerts...")
 
     thresholds = [
-        ("cost-alert-25pct", 12.50, "25% of $50 budget reached"),
-        ("cost-alert-50pct", 25.00, "50% of $50 budget reached"),
-        ("cost-alert-75pct", 37.50, "75% of $50 budget reached — review usage!"),
-        ("cost-alert-90pct", 45.00, "⚠️ 90% of $50 budget — take action!"),
+        ("cost-alert-25pct", 625.00, "25% of $2,500 budget reached"),
+        ("cost-alert-50pct", 1250.00, "50% of $2,500 budget reached"),
+        ("cost-alert-75pct", 1875.00, "75% of $2,500 budget reached — review usage!"),
+        ("cost-alert-90pct", 2250.00, "⚠️ 90% of $2,500 budget — take action!"),
     ]
 
     for name, threshold, desc in thresholds:

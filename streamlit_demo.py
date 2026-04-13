@@ -403,7 +403,7 @@ if part == "🏠 Overview":
     with col3:
         st.markdown('<div class="metric-card"><h3>$0</h3><p>APIM Base Cost</p></div>', unsafe_allow_html=True)
     with col4:
-        st.markdown('<div class="metric-card"><h3>$25</h3><p>Monthly Budget</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="metric-card"><h3>$2,500</h3><p>Monthly Budget</p></div>', unsafe_allow_html=True)
 
     st.markdown("---")
 
