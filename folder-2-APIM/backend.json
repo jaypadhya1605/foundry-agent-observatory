@@ -1,0 +1,7 @@
+{
+  "properties": {
+    "url": "https://ai-apim-demo-jp-001.cognitiveservices.azure.com/openai",
+    "protocol": "http",
+    "description": "Azure OpenAI Backend"
+  }
+}

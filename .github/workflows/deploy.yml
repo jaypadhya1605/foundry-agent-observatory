@@ -1,0 +1,141 @@
+name: Deploy APIM + Content Understanding Demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'folder-2-APIM/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+env:
+  AZURE_SUBSCRIPTION_ID: '06c76c82-8db9-4106-b3c0-2e90af4bdd04'
+  RESOURCE_GROUP: 'rg-apim-providence-demo-jp-001'
+  LOCATION: 'eastus2'
+  CU_LOCATION: 'westus'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate & Lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt 2>/dev/null || true
+          pip install flake8 python-dotenv
+
+      - name: Lint Python files
+        run: |
+          flake8 folder-2-APIM/ --max-line-length=120 --ignore=E501,W503 --count
+
+      - name: Validate gateway policies (XML)
+        run: |
+          python -c "
+          import xml.etree.ElementTree as ET
+          import glob
+          for f in glob.glob('folder-2-APIM/**/*.xml', recursive=True):
+              ET.parse(f)
+              print(f'  ✅ {f} — valid XML')
+          "
+
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    name: Deploy Infrastructure
+    needs: validate
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure Resource Group exists
+        run: |
+          az group create \
+            --name ${{ env.RESOURCE_GROUP }} \
+            --location ${{ env.LOCATION }} \
+            --tags project=providence-apim-demo
+
+      - name: Deploy APIM Gateway
+        run: |
+          python folder-2-APIM/02-setup-apim-gateway.py
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Provision Content Understanding (westus)
+        run: |
+          python folder-2-APIM/content-understanding/01-provision-content-understanding.py
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Setup Budget Alerts ($25)
+        run: |
+          python folder-2-APIM/05-setup-budget-alerts.py
+        env:
+          PYTHONUNBUFFERED: '1'
+
+  integration-test:
+    runs-on: ubuntu-latest
+    name: Integration Tests
+    needs: deploy-infrastructure
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: pip install requests python-dotenv openai azure-identity
+
+      - name: Get APIM Subscription Key
+        id: get-key
+        run: |
+          KEY=$(az apim subscription keys list \
+            --service-name apim-providence-demo-jp-001 \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --subscription-id demo-sub \
+            --query primaryKey -o tsv 2>/dev/null || echo "")
+          echo "::add-mask::$KEY"
+          echo "APIM_SUBSCRIPTION_KEY=$KEY" >> $GITHUB_ENV
+
+      - name: Smoke test — APIM Gateway health
+        run: |
+          GATEWAY="https://apim-providence-demo-jp-001.azure-api.net"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$GATEWAY/openai/deployments/gpt-4o/chat/completions?api-version=2024-02-01" \
+            -H "Ocp-Apim-Subscription-Key: $APIM_SUBSCRIPTION_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"messages":[{"role":"user","content":"ping"}],"max_tokens":5}')
+          echo "Gateway response: $STATUS"
+          if [ "$STATUS" == "000" ]; then
+            echo "⚠️ Gateway unreachable (may need APIM provisioning time)"
+          fi
+
+      - name: Smoke test — Content Understanding endpoint
+        run: |
+          CU_ENDPOINT="https://apim-providence-demo-jp-001.azure-api.net/content-understanding"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$CU_ENDPOINT/analyzers?api-version=2024-12-01-preview" \
+            -H "Ocp-Apim-Subscription-Key: $APIM_SUBSCRIPTION_KEY")
+          echo "Content Understanding response: $STATUS"

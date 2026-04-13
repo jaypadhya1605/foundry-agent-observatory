@@ -1,0 +1,43 @@
+<policies>
+    <inbound>
+        <base />
+        <!-- Route to Content Understanding backend -->
+        <set-backend-service backend-id="content-understanding-backend" />
+
+        <!-- Authenticate with managed identity (no API keys!) -->
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+
+        <!-- Rate limiting for Content Understanding (request-based) -->
+        <rate-limit-by-key
+            calls="20"
+            renewal-period="60"
+            counter-key="@(context.Subscription.Id)"
+            increment-condition="@(context.Response.StatusCode >= 200 && context.Response.StatusCode < 300)" />
+
+        <!-- Emit custom metrics for Content Understanding usage -->
+        <azure-openai-emit-token-metric namespace="ContentUnderstanding">
+            <dimension name="Subscription" value="@(context.Subscription.Id)" />
+            <dimension name="Service" value="ContentUnderstanding" />
+            <dimension name="API" value="@(context.Api.Name)" />
+        </azure-openai-emit-token-metric>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <!-- Inject tracking headers -->
+        <set-header name="x-apim-request-id" exists-action="override">
+            <value>@(context.RequestId.ToString())</value>
+        </set-header>
+        <set-header name="x-apim-service" exists-action="override">
+            <value>content-understanding</value>
+        </set-header>
+        <set-header name="x-apim-region" exists-action="override">
+            <value>westus</value>
+        </set-header>
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

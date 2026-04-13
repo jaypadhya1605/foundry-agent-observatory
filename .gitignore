@@ -1,0 +1,22 @@
+# Environment
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Certificates
+*.pem
+*.key
+*.crt
+*.cert
+
+# IDE
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated
+*.pptx
